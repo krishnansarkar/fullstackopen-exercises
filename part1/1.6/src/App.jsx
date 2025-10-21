@@ -1,9 +1,9 @@
 import { useState } from "react";
 
 const Button = ({ onClick, text }) => <button onClick={onClick}>{text}</button>;
-const Stat = ({ name, clicks }) => (
+const Stat = ({ name, value }) => (
     <p>
-        {name} {clicks}
+        {name} {value}
     </p>
 );
 
@@ -13,6 +13,8 @@ const App = () => {
     const [neutral, setNeutral] = useState(0);
     const [bad, setBad] = useState(0);
 
+    const total = good + neutral + bad;
+
     return (
         <>
             <h1>give feedback</h1>
@@ -20,9 +22,12 @@ const App = () => {
             <Button onClick={() => setNeutral(neutral + 1)} text="neutral" />
             <Button onClick={() => setBad(bad + 1)} text="bad" />
             <h1>statistics</h1>
-            <Stat name="good" clicks={good} />
-            <Stat name="neutral" clicks={neutral} />
-            <Stat name="bad" clicks={bad} />
+            <Stat name="good" value={good} />
+            <Stat name="neutral" value={neutral} />
+            <Stat name="bad" value={bad} />
+            <Stat name="all" value={total} />
+            <Stat name="average" value={(good - bad) / total} />
+            <Stat name="positive" value={`${good / total}%`} />
         </>
     );
 };
