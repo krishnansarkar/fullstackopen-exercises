@@ -3,7 +3,7 @@ const Header = (props) => <h1>{props.course}</h1>;
 const Content = (props) => (
     <div>
         {props.parts.map((part) => (
-            <Part part={part} />
+            <Part key={part.id} part={part} />
         ))}
     </div>
 );
