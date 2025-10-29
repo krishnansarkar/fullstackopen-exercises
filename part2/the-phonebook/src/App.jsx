@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import axios from "axios";
+import personsService from "./services/persons";
 
 const Filter = ({ searchQuery, onChange }) => (
     <div>
@@ -27,19 +27,21 @@ const PersonForm = ({
     </form>
 );
 
-const Person = ({ name, number }) => (
+const Person = ({ name, number, id, onDelete }) => (
     <p>
-        {name} {number}
+        {name} {number} <button onClick={() => onDelete(id)}>Delete</button>
     </p>
 );
 
-const Persons = ({ persons }) => (
+const Persons = ({ persons, onDelete }) => (
     <div>
         {persons.map((person) => (
             <Person
                 key={person.name}
                 name={person.name}
                 number={person.number}
+                id={person.id}
+                onDelete={onDelete}
             />
         ))}
     </div>
@@ -52,8 +54,8 @@ const App = () => {
     const [searchQuery, setSearchQuery] = useState("");
 
     useEffect(() => {
-        axios.get("http://localhost:3002/persons").then((response) => {
-            setPersons(response.data);
+        personsService.getAll().then((data) => {
+            setPersons(data);
         });
     }, []);
 
@@ -71,16 +73,49 @@ const App = () => {
 
     const addPerson = (event) => {
         event.preventDefault();
-        if (persons.find((person) => person.name == newName)) {
-            alert(`${newName} is already added to phonebook`);
+        var existingPerson = persons.find((person) => person.name == newName);
+        if (existingPerson) {
+            if (
+                window.confirm(
+                    `${newName} is already added to the phonebook, replace the old number with a new one?`
+                )
+            ) {
+                let person = {
+                    name: newName,
+                    number: newNumber,
+                };
+                personsService.put(existingPerson.id, person).then((data) => {
+                    setPersons(
+                        persons.map((person) =>
+                            person.name == existingPerson.name ? data : person
+                        )
+                    );
+                    setNewName("");
+                    setNewNumber("");
+                });
+            }
         } else {
             let person = {
                 name: newName,
                 number: newNumber,
             };
-            setPersons(persons.concat(person));
-            setNewName("");
-            setNewNumber("");
+            personsService.post(person).then((data) => {
+                setPersons(persons.concat(data));
+                setNewName("");
+                setNewNumber("");
+            });
+        }
+    };
+
+    const deletePerson = (id) => {
+        var person = persons.find((person) => person.id == id);
+        if (!person) return;
+        if (window.confirm(`Are you sure you want to delete ${person.name}?`)) {
+            personsService
+                .remove(id)
+                .then((data) =>
+                    setPersons(persons.filter((person) => person.id != data.id))
+                );
         }
     };
 
@@ -104,7 +139,7 @@ const App = () => {
                 onNumberChange={handleNumberChange}
             />
             <h2>Numbers</h2>
-            <Persons persons={filteredPersons} />
+            <Persons persons={filteredPersons} onDelete={deletePerson} />
         </div>
     );
 };
