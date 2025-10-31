@@ -1,6 +1,20 @@
 import { useState, useEffect } from "react";
 import personsService from "./services/persons";
 
+const Notification = ({ message }) => {
+    if (message == null) return;
+    const notificationStyle = {
+        color: "red",
+        background: "lightgrey",
+        fontSize: "20px",
+        borderStyle: "solid",
+        borderRadius: "5px",
+        padding: "10px",
+        marginBottom: "10px",
+    };
+    return <div style={notificationStyle}>{message}</div>;
+};
+
 const Filter = ({ searchQuery, onChange }) => (
     <div>
         filter shown with <input value={searchQuery} onChange={onChange} />
@@ -52,6 +66,7 @@ const App = () => {
     const [newName, setNewName] = useState("");
     const [newNumber, setNewNumber] = useState("");
     const [searchQuery, setSearchQuery] = useState("");
+    const [notification, setNotification] = useState(null);
 
     useEffect(() => {
         personsService.getAll().then((data) => {
@@ -84,15 +99,32 @@ const App = () => {
                     name: newName,
                     number: newNumber,
                 };
-                personsService.put(existingPerson.id, person).then((data) => {
-                    setPersons(
-                        persons.map((person) =>
-                            person.name == existingPerson.name ? data : person
-                        )
-                    );
-                    setNewName("");
-                    setNewNumber("");
-                });
+                personsService
+                    .put(existingPerson.id, person)
+                    .then((data) => {
+                        setPersons(
+                            persons.map((person) =>
+                                person.name == existingPerson.name
+                                    ? data
+                                    : person
+                            )
+                        );
+                        triggerNotification(`${person.name}'s number updated.`);
+                        setNewName("");
+                        setNewNumber("");
+                    })
+                    .catch((error) => {
+                        setPersons(
+                            persons.filter(
+                                (person) => person.id != existingPerson.id
+                            )
+                        );
+                        triggerNotification(
+                            `${person.name} has already been removed from the server.`
+                        );
+                        setNewName("");
+                        setNewNumber("");
+                    });
             }
         } else {
             let person = {
@@ -101,6 +133,7 @@ const App = () => {
             };
             personsService.post(person).then((data) => {
                 setPersons(persons.concat(data));
+                triggerNotification(`${person.name} added to phonebook.`);
                 setNewName("");
                 setNewNumber("");
             });
@@ -113,9 +146,20 @@ const App = () => {
         if (window.confirm(`Are you sure you want to delete ${person.name}?`)) {
             personsService
                 .remove(id)
-                .then((data) =>
-                    setPersons(persons.filter((person) => person.id != data.id))
-                );
+                .then((data) => {
+                    setPersons(
+                        persons.filter((person) => person.id != data.id)
+                    );
+                    triggerNotification(
+                        `${person.name} removed from phonebook.`
+                    );
+                })
+                .catch((error) => {
+                    setPersons(persons.filter((person) => person.id != id));
+                    triggerNotification(
+                        `${person.name} has already been removed from the server.`
+                    );
+                });
         }
     };
 
@@ -123,8 +167,16 @@ const App = () => {
         person.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+    const triggerNotification = (message) => {
+        setNotification(message);
+        setTimeout(() => {
+            setNotification(null);
+        }, 5000);
+    };
+
     return (
         <div>
+            <Notification message={notification} />
             <h2>Phonebook</h2>
             <Filter
                 searchQuery={searchQuery}
