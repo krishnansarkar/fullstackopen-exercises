@@ -45,7 +45,6 @@ function App() {
     const [searchQuery, setSearchQuery] = useState("");
     const [foundCountries, setFoundCountries] = useState(null);
     const [focusedCountry, setFocusedCountry] = useState(null);
-    const [focusedCountryDetails, setFocusedCountryDetails] = useState(null);
 
     useEffect(() => {
         axios
@@ -57,30 +56,22 @@ function App() {
             });
     }, []);
 
-    useEffect(() => {
-        if (focusedCountry) {
-            axios
-                .get(
-                    `https://studies.cs.helsinki.fi/restcountries/api/name/${focusedCountry}`
-                )
-                .then((response) => {
-                    setFocusedCountryDetails(response.data);
-                });
-        } else {
-            setFocusedCountryDetails(null);
-        }
-    }, [focusedCountry]);
-
     const handleSearchQueryChange = (event) => {
         setSearchQuery(event.target.value);
         const newFoundCountries = countries.filter((name) =>
             name.toLowerCase().includes(event.target.value.toLowerCase())
         );
-        console.log(newFoundCountries);
 
         setFoundCountries(newFoundCountries);
+
         if (newFoundCountries.length == 1) {
-            setFocusedCountry(newFoundCountries[0]);
+            axios
+                .get(
+                    `https://studies.cs.helsinki.fi/restcountries/api/name/${newFoundCountries[0]}`
+                )
+                .then((response) => {
+                    setFocusedCountry(response.data);
+                });
         } else {
             setFocusedCountry(null);
         }
@@ -96,7 +87,7 @@ function App() {
                         onChange={handleSearchQueryChange}
                     />
                 </div>
-                <FocusedCountry country={focusedCountryDetails} />
+                <FocusedCountry country={focusedCountry} />
                 <Countries countries={foundCountries} />
             </div>
         );
