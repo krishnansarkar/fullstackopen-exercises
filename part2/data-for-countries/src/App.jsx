@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-const Countries = ({ countries }) => {
+const Countries = ({ countries, onClick }) => {
     if (countries) {
         if (countries.length > 10) {
             return <div>Too many matches, specify another filter</div>;
@@ -9,7 +9,10 @@ const Countries = ({ countries }) => {
             return (
                 <div>
                     {countries.map((name) => (
-                        <p key={name}>{name}</p>
+                        <div key={name}>
+                            {name}{" "}
+                            <button onClick={() => onClick(name)}>Show</button>
+                        </div>
                     ))}
                 </div>
             );
@@ -56,10 +59,10 @@ function App() {
             });
     }, []);
 
-    const handleSearchQueryChange = (event) => {
-        setSearchQuery(event.target.value);
+    const updateQuery = (value) => {
+        setSearchQuery(value);
         const newFoundCountries = countries.filter((name) =>
-            name.toLowerCase().includes(event.target.value.toLowerCase())
+            name.toLowerCase().includes(value.toLowerCase())
         );
 
         setFoundCountries(newFoundCountries);
@@ -77,6 +80,14 @@ function App() {
         }
     };
 
+    const handleSearchQueryChange = (event) => {
+        updateQuery(event.target.value);
+    };
+
+    const handleShowClick = (name) => {
+        updateQuery(name);
+    };
+
     if (countries) {
         return (
             <div>
@@ -88,7 +99,10 @@ function App() {
                     />
                 </div>
                 <FocusedCountry country={focusedCountry} />
-                <Countries countries={foundCountries} />
+                <Countries
+                    countries={foundCountries}
+                    onClick={handleShowClick}
+                />
             </div>
         );
     }
