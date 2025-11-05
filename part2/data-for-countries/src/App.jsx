@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import { fetchWeatherApi } from "openmeteo";
 
 const Countries = ({ countries, onClick }) => {
     if (countries) {
@@ -22,7 +23,7 @@ const Countries = ({ countries, onClick }) => {
     return;
 };
 
-const FocusedCountry = ({ country }) => {
+const FocusedCountry = ({ country, weather }) => {
     if (country) {
         return (
             <div>
@@ -36,6 +37,9 @@ const FocusedCountry = ({ country }) => {
                     ))}
                 </ul>
                 <img src={country.flags.png} />
+                <h2>Weather in {country.capital}</h2>
+                <p>Temperature {country.weather.temp} Celsius</p>
+                <p>Wind {country.weather.wind} m/s</p>
             </div>
         );
     }
@@ -68,13 +72,49 @@ function App() {
         setFoundCountries(newFoundCountries);
 
         if (newFoundCountries.length == 1) {
-            axios
-                .get(
-                    `https://studies.cs.helsinki.fi/restcountries/api/name/${newFoundCountries[0]}`
-                )
-                .then((response) => {
-                    setFocusedCountry(response.data);
-                });
+            if (
+                !focusedCountry ||
+                focusedCountry.name.common.toLowerCase() !=
+                    newFoundCountries[0].toLowerCase()
+            ) {
+                axios
+                    .get(
+                        `https://studies.cs.helsinki.fi/restcountries/api/name/${newFoundCountries[0]}`
+                    )
+                    .then((response) => {
+                        let country = response.data;
+                        axios
+                            .get(
+                                `https://geocoding-api.open-meteo.com/v1/search?name=${country.capital}&count=1&language=en&format=json`
+                            )
+                            .then((response) => {
+                                const result = response.data.results[0];
+                                const params = {
+                                    latitude: result.latitude,
+                                    longitude: result.longitude,
+                                    current: [
+                                        "temperature_2m",
+                                        "wind_speed_10m",
+                                    ],
+                                    wind_speed_unit: "ms",
+                                    forecastDays: 1,
+                                };
+                                const url =
+                                    "https://api.open-meteo.com/v1/forecast";
+                                fetchWeatherApi(url, params).then(
+                                    (responses) => {
+                                        const current = responses[0].current();
+                                        const weather = {
+                                            temp: current.variables(0).value(),
+                                            wind: current.variables(0).value(),
+                                        };
+                                        country.weather = weather;
+                                        setFocusedCountry(country);
+                                    }
+                                );
+                            });
+                    });
+            }
         } else {
             setFocusedCountry(null);
         }
