@@ -3,6 +3,7 @@ const app = express();
 const morgan = require("morgan");
 const port = 3001;
 
+app.use(express.static("dist"));
 app.use(express.json());
 
 morgan.token("body", (request, response) => JSON.stringify(request.body));
@@ -36,7 +37,7 @@ let persons = [
 ];
 
 app.get("/info", (request, response) => {
-    response.send(
+    return response.send(
         `<p>Phonebook has info for ${
             persons.length
         } people</p>${new Date()}<p></p>`
@@ -44,14 +45,14 @@ app.get("/info", (request, response) => {
 });
 
 app.get("/api/persons", (request, response) => {
-    response.json(persons);
+    return response.json(persons);
 });
 
 app.get("/api/persons/:id", (request, response) => {
     const person = persons.find((person) => person.id == request.params.id);
     if (!person) return response.status(400).end();
 
-    response.json(person);
+    return response.json(person);
 });
 
 app.post("/api/persons", (request, response) => {
@@ -78,12 +79,12 @@ app.post("/api/persons", (request, response) => {
 
     persons = persons.concat(newPerson);
 
-    response.json(newPerson);
+    return response.json(newPerson);
 });
 
 app.delete("/api/persons/:id", (request, response) => {
     persons = persons.filter((person) => person.id != request.params.id);
-    response.status(204).end();
+    return response.status(204).end();
 });
 
 app.listen(port, () => {
