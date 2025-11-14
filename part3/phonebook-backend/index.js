@@ -24,14 +24,21 @@ app.get("/info", (request, response) => {
 });
 
 app.get("/api/persons", (request, response) => {
-    return response.json(persons);
+    Person.find({}).then((persons) => {
+        return response.json(persons);
+    });
 });
 
 app.get("/api/persons/:id", (request, response) => {
-    const person = persons.find((person) => person.id == request.params.id);
-    if (!person) return response.status(400).end();
-
-    return response.json(person);
+    Person.findById(request.params.id)
+        .then((person) => {
+            if (!person) return response.status(400).end();
+            return response.json(person);
+        })
+        .catch((error) => {
+            console.log("error fetching from MongoDB", error.message);
+            return response.status(400).end();
+        });
 });
 
 app.post("/api/persons", (request, response) => {
