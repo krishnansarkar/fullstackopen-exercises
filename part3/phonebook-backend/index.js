@@ -52,20 +52,24 @@ app.post("/api/persons", (request, response) => {
         return response.status(400).json({
             error: "number missing",
         });
-    if (persons.find((p) => p.name.toLowerCase() == person.name.toLowerCase()))
-        return response.status(400).json({
-            error: "name must be unique",
-        });
+    // if (persons.find((p) => p.name.toLowerCase() == person.name.toLowerCase()))
+    //     return response.status(400).json({
+    //         error: "name must be unique",
+    //     });
 
-    const newPerson = {
-        id: String(Math.floor(Math.random() * 9999999999)),
+    const newPerson = new Person({
         name: person.name,
         number: person.number,
-    };
-
-    persons = persons.concat(newPerson);
-
-    return response.json(newPerson);
+    });
+    newPerson
+        .save()
+        .then((result) => {
+            return response.json(result);
+        })
+        .catch((error) => {
+            console.log("error posting to MongoDB", error.message);
+            return response.status(400).end();
+        });
 });
 
 app.delete("/api/persons/:id", (request, response) => {
