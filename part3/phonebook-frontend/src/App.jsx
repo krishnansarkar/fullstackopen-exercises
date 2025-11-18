@@ -51,7 +51,7 @@ const Persons = ({ persons, onDelete }) => (
     <div>
         {persons.map((person) => (
             <Person
-                key={person.name}
+                key={person.id}
                 name={person.name}
                 number={person.number}
                 id={person.id}

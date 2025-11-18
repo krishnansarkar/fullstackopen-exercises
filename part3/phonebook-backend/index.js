@@ -29,29 +29,31 @@ app.get("/api/persons", (request, response) => {
     });
 });
 
-app.get("/api/persons/:id", (request, response) => {
+app.get("/api/persons/:id", (request, response, next) => {
     Person.findById(request.params.id)
         .then((person) => {
-            if (!person) return response.status(400).end();
+            if (!person) return response.status(404).end();
             return response.json(person);
         })
         .catch((error) => {
             console.log("error fetching from MongoDB", error.message);
-            return response.status(400).end();
+            return next(error);
         });
 });
 
-app.post("/api/persons", (request, response) => {
+app.post("/api/persons", (request, response, next) => {
     const person = request.body;
 
-    if (!person.name)
-        return response.status(400).json({
-            error: "name missing",
-        });
-    if (!person.number)
-        return response.status(400).json({
-            error: "number missing",
-        });
+    if (!person.name) {
+        const error = new Error("name missing");
+        error.name = "FieldError";
+        return next(error);
+    }
+    if (!person.number) {
+        const error = new Error("number missing");
+        error.name = "FieldError";
+        return next(error);
+    }
     // if (persons.find((p) => p.name.toLowerCase() == person.name.toLowerCase()))
     //     return response.status(400).json({
     //         error: "name must be unique",
@@ -67,15 +69,34 @@ app.post("/api/persons", (request, response) => {
             return response.json(result);
         })
         .catch((error) => {
-            console.log("error posting to MongoDB", error.message);
-            return response.status(400).end();
+            console.log("error posting to MongoDB: ", error.message);
+            return next(error);
         });
 });
 
-app.delete("/api/persons/:id", (request, response) => {
-    persons = persons.filter((person) => person.id != request.params.id);
-    return response.status(204).end();
+app.delete("/api/persons/:id", (request, response, next) => {
+    Person.findByIdAndDelete(request.params.id)
+        .then((person) => {
+            response.status(204).end();
+        })
+        .catch((error) => {
+            console.log("error deleting from MongoDB: ", error.message);
+            return next(error);
+        });
 });
+
+const errorHandler = (error, request, response, next) => {
+    switch (error.name) {
+        case "CastError":
+            return response.status(400).send({ message: "malformatted id" });
+        case "FieldError":
+            return response.status(400).send({ message: error.message });
+    }
+
+    next(error);
+};
+
+app.use(errorHandler);
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`);
