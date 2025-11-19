@@ -17,7 +17,7 @@ app.use(
 
 app.get("/info", (request, response) => {
     Person.countDocuments({}).then((count) => {
-        return response.send(
+        return response(
             `<p>Phonebook has info for ${count} people</p><p>${new Date()}</p>`
         );
     });
@@ -103,7 +103,7 @@ app.put("/api/persons/:id", (request, response, next) => {
             person.number = number;
 
             person
-                .save()
+                .save({ runValidators: true })
                 .then((updatedPerson) => {
                     return response.json(person);
                 })
@@ -126,13 +126,15 @@ app.delete("/api/persons/:id", (request, response, next) => {
 const errorHandler = (error, request, response, next) => {
     switch (error.name) {
         case "CastError":
-            return response.status(400).send({ message: "malformatted id" });
+            return response.status(400).send({ error: "malformatted id" });
         case "SyntaxError":
-            return response.status(400).send({ message: "malformatted body" });
+            return response.status(400).send({ error: "malformatted body" });
+        case "ValidationError":
+            return response.status(400).send({ error: error.message });
         case "400Error":
-            return response.status(400).send({ message: error.message });
+            return response.status(400).send({ error: error.message });
         case "404Error":
-            return response.status(404).send({ message: error.message });
+            return response.status(404).send({ error: error.message });
     }
 
     next(error);

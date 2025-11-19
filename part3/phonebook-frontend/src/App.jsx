@@ -117,16 +117,7 @@ const App = () => {
                         setNewNumber("");
                     })
                     .catch((error) => {
-                        setPersons(
-                            persons.filter(
-                                (person) => person.id != existingPerson.id
-                            )
-                        );
-                        triggerNotification(
-                            `${person.name} has already been removed from the server.`
-                        );
-                        setNewName("");
-                        setNewNumber("");
+                        triggerNotification(`${error.response.data.error}`);
                     });
             }
         } else {
@@ -134,12 +125,17 @@ const App = () => {
                 name: newName,
                 number: newNumber,
             };
-            personsService.post(person).then((data) => {
-                setPersons(persons.concat(data));
-                triggerNotification(`${person.name} added to phonebook.`);
-                setNewName("");
-                setNewNumber("");
-            });
+            personsService
+                .post(person)
+                .then((data) => {
+                    setPersons(persons.concat(data));
+                    triggerNotification(`${person.name} added to phonebook.`);
+                    setNewName("");
+                    setNewNumber("");
+                })
+                .catch((error) => {
+                    triggerNotification(`${error.response.data.error}`);
+                });
         }
     };
 
