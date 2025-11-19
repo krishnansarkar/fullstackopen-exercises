@@ -93,7 +93,7 @@ const App = () => {
             triggerNotification(
                 `${existingPerson.name} already exists in phonebook.`
             );
-            /*if (
+            if (
                 window.confirm(
                     `${newName} is already added to the phonebook, replace the old number with a new one?`
                 )
@@ -128,7 +128,7 @@ const App = () => {
                         setNewName("");
                         setNewNumber("");
                     });
-            }*/
+            }
         } else {
             let person = {
                 name: newName,

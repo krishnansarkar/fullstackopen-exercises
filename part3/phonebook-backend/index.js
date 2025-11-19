@@ -32,7 +32,11 @@ app.get("/api/persons", (request, response) => {
 app.get("/api/persons/:id", (request, response, next) => {
     Person.findById(request.params.id)
         .then((person) => {
-            if (!person) return response.status(404).end();
+            if (!person) {
+                const error = new Error("invalid id");
+                error.name = "404Error";
+                return next(error);
+            }
             return response.json(person);
         })
         .catch((error) => {
@@ -46,12 +50,12 @@ app.post("/api/persons", (request, response, next) => {
 
     if (!person.name) {
         const error = new Error("name missing");
-        error.name = "FieldError";
+        error.name = "400Error";
         return next(error);
     }
     if (!person.number) {
         const error = new Error("number missing");
-        error.name = "FieldError";
+        error.name = "400Error";
         return next(error);
     }
     // if (persons.find((p) => p.name.toLowerCase() == person.name.toLowerCase()))
@@ -74,6 +78,40 @@ app.post("/api/persons", (request, response, next) => {
         });
 });
 
+app.put("/api/persons/:id", (request, response, next) => {
+    const { name, number } = request.body;
+    if (!name) {
+        const error = new Error("name missing");
+        error.name = "400Error";
+        return next(error);
+    }
+    if (!number) {
+        const error = new Error("number missing");
+        error.name = "400Error";
+        return next(error);
+    }
+
+    Person.findById(request.params.id)
+        .then((person) => {
+            if (!person) {
+                const error = new Error("invalid id");
+                error.name = "404Error";
+                return next(error);
+            }
+
+            person.name = name;
+            person.number = number;
+
+            person
+                .save()
+                .then((updatedPerson) => {
+                    return response.json(person);
+                })
+                .catch((error) => next(error));
+        })
+        .catch((error) => next(error));
+});
+
 app.delete("/api/persons/:id", (request, response, next) => {
     Person.findByIdAndDelete(request.params.id)
         .then((person) => {
@@ -89,8 +127,12 @@ const errorHandler = (error, request, response, next) => {
     switch (error.name) {
         case "CastError":
             return response.status(400).send({ message: "malformatted id" });
-        case "FieldError":
+        case "SyntaxError":
+            return response.status(400).send({ message: "malformatted body" });
+        case "400Error":
             return response.status(400).send({ message: error.message });
+        case "404Error":
+            return response.status(404).send({ message: error.message });
     }
 
     next(error);
