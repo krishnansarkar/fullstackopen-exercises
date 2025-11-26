@@ -4,9 +4,6 @@ import js from "@eslint/js";
 import stylisticJs from "@stylistic/eslint-plugin";
 
 export default defineConfig([
-    {
-        ignores: ["dist/**", "dist/assets/**"],
-    },
     js.configs.recommended,
     {
         files: ["**/*.js"],
