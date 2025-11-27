@@ -5,6 +5,7 @@ const supertest = require('supertest')
 const app = require('../app')
 const helper = require('./test_helper')
 const Blog = require('../models/blog')
+const blog = require('../models/blog')
 
 const api = supertest(app)
 
@@ -97,6 +98,60 @@ describe('blog api', () => {
       .post('/api/blogs')
       .send(newPost)
       .expect(400)
+  })
+
+  describe('deletion of a blog', () => {
+    test('succeeds with status code 204 if valid', async () => {
+      const blogs = await helper.blogsInDb()
+      const id = blogs[0].id
+      await api.delete(`/api/blogs/${id}`)
+        .expect(204)
+      const newResponse = await api.get('/api/blogs')
+      assert.strictEqual(newResponse.body.length, helper.initalBlogs.length - 1)
+    })
+
+    test('returns with status code 500 if invalid', async () => {
+      const id = -1
+      await api.delete(`/api/blogs/${id}`)
+        .expect(500)
+      const newResponse = await api.get('/api/blogs')
+      assert.strictEqual(newResponse.body.length, helper.initalBlogs.length)
+    })
+  })
+
+  describe('updating a blog', () => {
+    test('succeeds with status code 200 if valid', async () => {
+      const blogs = await helper.blogsInDb()
+      const firstBlog = blogs[0]
+      const newLikes = 69
+      await api
+        .put(`/api/blogs/${firstBlog.id}`)
+        .send({ likes: newLikes })
+        .expect(200)
+
+      const updatedBlogs = await helper.blogsInDb()
+      assert(updatedBlogs.find(blog =>
+        blog.title === blog.title
+        && blog.author === blog.author
+        && blog.url === blog.url
+        && blog.likes === newLikes
+      ))
+    })
+
+    test('fails with status code 500 if invalid id', async () => {
+      const newLikes = 69
+      await api
+        .put(`/api/blogs/${-99}`)
+        .send({ likes: newLikes })
+        .expect(500)
+    })
+
+    test('fails with status code 400 if invalid body', async () => {
+      await api
+        .put(`/api/blogs/${-99}`)
+        .send({ dog: 'food' })
+        .expect(400)
+    })
   })
 })
 
