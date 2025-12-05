@@ -45,6 +45,38 @@ describe('when there is initally one user in db', () => {
     const content = response.body
     assert.strictEqual(content.length, 1)
   })
+
+  test('creating a user with an invalid username responds with status code 400 and an appropriate error message', async () => {
+    const newUser = {
+      username: 'y',
+      name: 'Yahoo Smith',
+      password: 'nicejob'
+    }
+
+    const response = await api
+      .post('/api/users')
+      .send(newUser)
+      .expect(400)
+      .expect('Content-Type', /application\/json/)
+
+    assert(response.body.error.includes('username: must be at least 3 characters long'))
+  })
+
+  test('creating a user with an invalid password responds with status code 400 and an appropriate error message', async () => {
+    const newUser = {
+      username: 'yahoo',
+      name: 'Yahoo Smith',
+      password: 'ni'
+    }
+
+    const response = await api
+      .post('/api/users')
+      .send(newUser)
+      .expect(400)
+      .expect('Content-Type', /application\/json/)
+
+    assert(response.body.error.includes('password: must be at least 3 characters long'))
+  })
 })
 
 after(async () => {
