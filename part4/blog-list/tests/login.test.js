@@ -54,6 +54,54 @@ describe('when one user is in the database', () => {
     assert.strictEqual(result.body.username, firstUser.username)
     assert.strictEqual(result.body.name, firstUser.name)
   })
+
+  test('posting blog with invalid token returns with appropriate error', async () => {
+    const firstPost = {
+      title: 'Is Guru the best?',
+      author: 'Benji',
+      url: 'www.a.com',
+      likes: 100,
+    }
+    const token = 'gaga'
+
+    const result = await api.post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
+      .send(firstPost)
+      .expect(401)
+      .expect('Content-Type', /application\/json/)
+
+    assert(result.body.error.includes('token invalid'))
+  })
+
+  test('successfully posts blog after logging in', async () => {
+    const loginDetails = {
+      username: firstUser.username,
+      password: firstUser.password
+    }
+
+    const loginResult = await api.post('/api/login')
+      .send(loginDetails)
+      .expect(200)
+      .expect('Content-Type', /application\/json/)
+
+    const firstPost = {
+      title: 'Is Guru the best?',
+      author: 'Benji',
+      url: 'www.a.com',
+      likes: 100,
+    }
+
+    const token = loginResult.body.token
+
+    const postBlogResult = await api.post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
+      .send(firstPost)
+      .expect(201)
+      .expect('Content-Type', /application\/json/)
+
+    assert.strictEqual(postBlogResult.body.title, firstPost.title)
+    assert.strictEqual(postBlogResult.body.user.username, firstUser.username)
+  })
 })
 
 after(async () => {
