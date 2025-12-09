@@ -40,11 +40,22 @@ describe('when one user and blog is in the database', () => {
   test('retrieving a blog returns it\'s creator\'s user information', async () => {
     const response = await api.get('/api/blogs')
     const firstBlog = response.body[0]
-    console.log(firstBlog)
     assert('user' in firstBlog)
     const user = firstBlog.user
     assert.strictEqual(user.username, firstUser.username)
     assert.strictEqual(user.name, firstUser.name)
+  })
+
+  test('retrieving a user returns their blogs', async () => {
+    const response = await api.get('/api/users')
+    const firstUser = response.body[0]
+    assert('blogs' in firstUser)
+
+    assert(firstUser.blogs.find(blog =>
+      blog.title === firstPost.title &&
+      blog.author === firstPost.author &&
+      blog.url === firstPost.url &&
+      blog.likes === firstPost.likes))
   })
 })
 
