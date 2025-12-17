@@ -5,19 +5,20 @@ const supertest = require('supertest')
 const app = require('../app')
 const helper = require('./test_helper')
 const Blog = require('../models/blog')
+const User = require('../models/user')
 
 const api = supertest(app)
 
-beforeEach(async () => {
-  await Blog.deleteMany({})
+describe('when there are blogs in the db', () => {
+  beforeEach(async () => {
+    await Blog.deleteMany({})
 
-  const blogObjects = helper.initalBlogs
-    .map(blog => new Blog(blog))
-  const promiseArray = blogObjects.map(blog => blog.save())
-  await Promise.all(promiseArray)
-})
+    const blogObjects = helper.initalBlogs
+      .map(blog => new Blog(blog))
+    const promiseArray = blogObjects.map(blog => blog.save())
+    await Promise.all(promiseArray)
+  })
 
-describe('blog api', () => {
   test('GET /api/blogs returns correct amount of blog posts', async () => {
     const response = await api.get('/api/blogs')
     const contents = response.body
@@ -29,127 +30,331 @@ describe('blog api', () => {
     const firstContent = response.body[0]
     assert('id' in firstContent)
   })
+})
 
-  test('POST /api/blogs successfully creates a new blog post', async () => {
-    const newPost = {
-      'title': 'Is Gagoonga the best?',
-      'author': 'Gagoonga',
-      'url': 'http://google.com',
-      'likes': 10000
+describe('when there are users in the db', () => {
+  beforeEach(async () => {
+    await User.deleteMany({})
+
+    const userPromiseArray = helper.initialUsers.map(async (user) => {
+      await api.post('/api/users')
+        .send(user)
+    })
+    await Promise.all(userPromiseArray)
+
+    await Blog.deleteMany({})
+  })
+
+  test('posting blog with invalid token returns with appropriate error', async () => {
+    const firstPost = {
+      title: 'Is Guru the best?',
+      author: 'Benji',
+      url: 'www.a.com',
+      likes: 100,
+    }
+    const token = 'gaga'
+
+    const result = await api.post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
+      .send(firstPost)
+      .expect(401)
+      .expect('Content-Type', /application\/json/)
+
+    assert(result.body.error.includes('token invalid'))
+  })
+
+  test('posting blog with no token returns with appropriate error', async () => {
+    const firstPost = {
+      title: 'Is Guru the best?',
+      author: 'Benji',
+      url: 'www.a.com',
+      likes: 100,
     }
 
-    await api
-      .post('/api/blogs')
+    const result = await api.post('/api/blogs')
+      .send(firstPost)
+      .expect(401)
+      .expect('Content-Type', /application\/json/)
+
+    assert(result.body.error.includes('token invalid'))
+  })
+
+  test('posting a blog with valid token is successful', async () => {
+    const loginDetails = {
+      username: helper.firstUser.username,
+      password: helper.firstUser.password
+    }
+
+    const loginResult = await api.post('/api/login')
+      .send(loginDetails)
+      .expect(200)
+      .expect('Content-Type', /application\/json/)
+
+    const newPost = {
+      title: 'Is Guru the best?',
+      author: 'Benji',
+      url: 'www.a.com',
+      likes: 100,
+    }
+
+    const token = loginResult.body.token
+
+    await api.post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
       .send(newPost)
+      .expect(201)
+      .expect('Content-Type', /application\/json/)
 
     const response = await api.get('/api/blogs')
     const content = response.body
 
-    assert.strictEqual(content.length, helper.initalBlogs.length + 1)
+    assert.strictEqual(content.length, 1)
     assert(content.find(post =>
       post.title === newPost.title
       && post.author === newPost.author
       && post.url === newPost.url
-      && post.likes === newPost.likes))
+      && post.likes === newPost.likes
+      && post.user.username === helper.firstUser.username))
   })
 
-  test('If POST /api/blogs is missing likes, default to 0', async () => {
-    const newPost = {
-      'title': 'Is Gagoonga the best?',
-      'author': 'Gagoonga',
-      'url': 'http://google.com',
+  test('posting a blog with valid token but missing likes defaults likes to 0', async () => {
+    const loginDetails = {
+      username: helper.firstUser.username,
+      password: helper.firstUser.password
     }
 
-    await api
-      .post('/api/blogs')
+    const loginResult = await api.post('/api/login')
+      .send(loginDetails)
+      .expect(200)
+      .expect('Content-Type', /application\/json/)
+
+    const newPost = {
+      title: 'Is Guru the best?',
+      author: 'Benji',
+      url: 'www.a.com'
+    }
+
+    const token = loginResult.body.token
+
+    await api.post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
       .send(newPost)
+      .expect(201)
+      .expect('Content-Type', /application\/json/)
 
     const response = await api.get('/api/blogs')
     const content = response.body
 
-    assert.strictEqual(content.length, helper.initalBlogs.length + 1)
+    assert.strictEqual(content.length, 1)
     assert(content.find(post =>
       post.title === newPost.title
       && post.author === newPost.author
       && post.url === newPost.url
-      && post.likes === 0))
+      && post.likes === 0
+      && post.user.username === helper.firstUser.username))
   })
 
-  test('If POST /api/blogs is missing title, respond with status code 400', async () => {
-    const newPost = {
-      'author': 'Gagoonga',
-      'url': 'http://google.com',
+  test('posting a blog with valid token, but missing title responds with status code 400', async () => {
+    const loginDetails = {
+      username: helper.firstUser.username,
+      password: helper.firstUser.password
     }
 
-    await api
-      .post('/api/blogs')
+    const loginResult = await api.post('/api/login')
+      .send(loginDetails)
+      .expect(200)
+      .expect('Content-Type', /application\/json/)
+
+    const newPost = {
+      author: 'Benji',
+      url: 'www.a.com',
+      likes: 100,
+    }
+
+    const token = loginResult.body.token
+
+    await api.post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
       .send(newPost)
       .expect(400)
   })
 
-  test('If POST /api/blogs is missing url, respond with status code 400', async () => {
-    const newPost = {
-      'title': 'Is Gagoonga the best?',
-      'author': 'Gagoonga'
+  test('posting a blog with valid token, but missing url responds with status code 400', async () => {
+    const loginDetails = {
+      username: helper.firstUser.username,
+      password: helper.firstUser.password
     }
 
-    await api
-      .post('/api/blogs')
+    const loginResult = await api.post('/api/login')
+      .send(loginDetails)
+      .expect(200)
+      .expect('Content-Type', /application\/json/)
+
+    const newPost = {
+      title: 'Is Guru the best?',
+      author: 'Benji',
+      likes: 100,
+    }
+
+    const token = loginResult.body.token
+
+    await api.post('/api/blogs')
+      .set('Authorization', `Bearer ${token}`)
       .send(newPost)
       .expect(400)
   })
 
-  describe('deletion of a blog', () => {
-    test('succeeds with status code 204 if valid', async () => {
-      const blogs = await helper.blogsInDb()
-      const id = blogs[0].id
-      await api.delete(`/api/blogs/${id}`)
-        .expect(204)
-      const newResponse = await api.get('/api/blogs')
-      assert.strictEqual(newResponse.body.length, helper.initalBlogs.length - 1)
-    })
+  describe('when there is one blog', () => {
+    beforeEach(async () => {
+      Blog.deleteMany({})
 
-    test('returns with status code 500 if invalid', async () => {
-      const id = -1
-      await api.delete(`/api/blogs/${id}`)
-        .expect(500)
-      const newResponse = await api.get('/api/blogs')
-      assert.strictEqual(newResponse.body.length, helper.initalBlogs.length)
-    })
-  })
+      const loginDetails = {
+        username: helper.firstUser.username,
+        password: helper.firstUser.password
+      }
 
-  describe('updating a blog', () => {
-    test('succeeds with status code 200 if valid', async () => {
-      const blogs = await helper.blogsInDb()
-      const firstBlog = blogs[0]
-      const newLikes = 69
-      await api
-        .put(`/api/blogs/${firstBlog.id}`)
-        .send({ likes: newLikes })
+      const loginResult = await api.post('/api/login')
+        .send(loginDetails)
         .expect(200)
+        .expect('Content-Type', /application\/json/)
 
-      const updatedBlogs = await helper.blogsInDb()
-      assert(updatedBlogs.find(blog =>
-        blog.title === blog.title
-        && blog.author === blog.author
-        && blog.url === blog.url
-        && blog.likes === newLikes
-      ))
+      const newPost = {
+        title: 'Is Guru the best?',
+        author: 'Benji',
+        url: 'www.a.com',
+        likes: 100,
+      }
+
+      const token = loginResult.body.token
+
+      await api.post('/api/blogs')
+        .set('Authorization', `Bearer ${token}`)
+        .send(newPost)
+        .expect(201)
+        .expect('Content-Type', /application\/json/)
     })
 
-    test('fails with status code 500 if invalid id', async () => {
-      const newLikes = 69
-      await api
-        .put(`/api/blogs/${-99}`)
-        .send({ likes: newLikes })
-        .expect(500)
+    describe('deletion of a blog', () => {
+      test('succeeds with status code 204 if valid', async () => {
+        const blogs = await helper.blogsInDb()
+        const id = blogs[0].id
+
+        const loginDetails = {
+          username: helper.firstUser.username,
+          password: helper.firstUser.password
+        }
+
+        const loginResult = await api.post('/api/login')
+          .send(loginDetails)
+          .expect(200)
+          .expect('Content-Type', /application\/json/)
+
+        const token = loginResult.body.token
+
+        await api.delete(`/api/blogs/${id}`)
+          .set('Authorization', `Bearer ${token}`)
+          .expect(204)
+
+        const response = await api.get('/api/blogs')
+        assert.strictEqual(response.body.length, 0)
+      })
+
+      test('returns with status code 500 if invalid', async () => {
+        const id = -1
+
+        const loginDetails = {
+          username: helper.firstUser.username,
+          password: helper.firstUser.password
+        }
+
+        const loginResult = await api.post('/api/login')
+          .send(loginDetails)
+          .expect(200)
+          .expect('Content-Type', /application\/json/)
+
+        const token = loginResult.body.token
+
+        await api.delete(`/api/blogs/${id}`)
+          .set('Authorization', `Bearer ${token}`)
+          .expect(500)
+
+        const response = await api.get('/api/blogs')
+        assert.strictEqual(response.body.length, 1)
+      })
     })
 
-    test('fails with status code 400 if invalid body', async () => {
-      await api
-        .put(`/api/blogs/${-99}`)
-        .send({ dog: 'food' })
-        .expect(400)
+    describe('updating a blog', () => {
+      test('succeeds with status code 200 if valid', async () => {
+        const loginDetails = {
+          username: helper.firstUser.username,
+          password: helper.firstUser.password
+        }
+
+        const loginResult = await api.post('/api/login')
+          .send(loginDetails)
+          .expect(200)
+          .expect('Content-Type', /application\/json/)
+
+        const token = loginResult.body.token
+
+        const blogs = await helper.blogsInDb()
+        const firstBlog = blogs[0]
+        const newLikes = 69
+        await api
+          .put(`/api/blogs/${firstBlog.id}`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ likes: newLikes })
+          .expect(200)
+
+        const updatedBlogs = await helper.blogsInDb()
+        assert(updatedBlogs.find(blog =>
+          blog.title === blog.title
+          && blog.author === blog.author
+          && blog.url === blog.url
+          && blog.likes === newLikes
+        ))
+      })
+
+      test('fails with status code 500 if invalid id', async () => {
+        const loginDetails = {
+          username: helper.firstUser.username,
+          password: helper.firstUser.password
+        }
+
+        const loginResult = await api.post('/api/login')
+          .send(loginDetails)
+          .expect(200)
+          .expect('Content-Type', /application\/json/)
+
+        const token = loginResult.body.token
+
+        const newLikes = 69
+        await api
+          .put(`/api/blogs/${-99}`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ likes: newLikes })
+          .expect(500)
+      })
+
+      test('fails with status code 400 if invalid body', async () => {
+        const loginDetails = {
+          username: helper.firstUser.username,
+          password: helper.firstUser.password
+        }
+
+        const loginResult = await api.post('/api/login')
+          .send(loginDetails)
+          .expect(200)
+          .expect('Content-Type', /application\/json/)
+
+        const token = loginResult.body.token
+
+        await api
+          .put(`/api/blogs/${-99}`)
+          .set('Authorization', `Bearer ${token}`)
+          .send({ dog: 'food' })
+          .expect(400)
+      })
     })
   })
 })
@@ -157,3 +362,4 @@ describe('blog api', () => {
 after(async () => {
   await mongoose.connection.close()
 })
+

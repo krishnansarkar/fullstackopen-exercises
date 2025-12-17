@@ -18,7 +18,6 @@ blogsRouter.post('/', middleware.userExtractor, async (request, response) => {
     newBlog.likes = 0
 
   const user = request.user
-  console.log('here')
 
   newBlog.user = user._id
 
@@ -35,12 +34,17 @@ blogsRouter.post('/', middleware.userExtractor, async (request, response) => {
 blogsRouter.delete('/:id', middleware.userExtractor, async (request, response) => {
   const user = request.user
 
-  const blog = await Blog.findById(request.params.id)
+  let blog
+  try {
+    blog = await Blog.findById(request.params.id)
+  } catch {
+    return response.status(500).json({ error: 'invalid id' })
+  }
 
   if(blog.user.toString() !== user._id.toString())
     return response.status(401).json({ error: 'UserID mismatch' })
 
-  user.blogs = user.blogs.filter(b => b._id.toString() !== blog._id.toString())
+  user.blogs = user.blogs.filter(b => b.id.toString() !== blog.id.toString())
   await user.save()
 
   await blog.deleteOne()
@@ -48,12 +52,22 @@ blogsRouter.delete('/:id', middleware.userExtractor, async (request, response) =
   response.status(204).end()
 })
 
-blogsRouter.put('/:id', async (request, response) => {
+blogsRouter.put('/:id', middleware.userExtractor, async (request, response) => {
   if(!request.body.likes){
     return response.status(400).end()
   }
 
-  const blog = await Blog.findById(request.params.id)
+  const user = request.user
+  let blog
+  try {
+    blog = await Blog.findById(request.params.id)
+  } catch {
+    return response.status(500).json({ error: 'invalid id' })
+  }
+
+  if(blog.user.toString() !== user._id.toString())
+    return response.status(401).json({ error: 'UserID mismatch' })
+
   blog.likes = request.body.likes
   await blog.save()
   response.status(200).json(blog)
